@@ -1,0 +1,7 @@
+.deseq-log {
+  font-family: monospace;
+  font-size: 0.8em;
+  color: #555;
+  max-height: 160px;
+  overflow-y: auto;
+}

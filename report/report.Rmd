@@ -1,0 +1,129 @@
+---
+title: "DESeq2 differential expression report"
+date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    self_contained: true
+params:
+  dds: NULL
+  transformed: NULL
+  design: NULL
+  variable: NULL
+  results: NULL
+  numerator: NULL
+  denominator: NULL
+  alpha: 0.05
+  lfc: 1
+  shrink: TRUE
+  n_top: 50
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
+                      fig.width = 8, fig.height = 5)
+library(ggplot2)
+dds <- params$dds
+res <- params$results
+res$status <- classify_genes(res$padj, res$log2FoldChange, params$alpha, params$lfc)
+pf <- S4Vectors::metadata(dds)$prefilter
+colors <- c("Up" = "#C0392B", "Down" = "#2471A3",
+            "Not significant" = "#B3B3B3", "Not tested (padj = NA)" = "#E0E0E0")
+```
+
+## Parameters
+
+| Parameter | Value |
+|---|---|
+| Design formula | `r paste(deparse(DESeq2::design(dds)), collapse = "")` |
+| Contrast | `r params$variable`: **`r params$numerator`** vs **`r params$denominator`** (reference) |
+| Pre-filtering | ≥ `r pf$min_count` reads in ≥ `r pf$min_samples` samples (`r pf$n_after` / `r pf$n_before` genes kept) |
+| FDR threshold | `r params$alpha` (Benjamini-Hochberg) |
+| \|log2FC\| threshold | `r params$lfc` |
+| LFC shrinkage | `r if (isTRUE(params$shrink)) "yes (lfcShrink, type 'normal')" else "no (MLE)"` |
+| Transformation (QC) | `r S4Vectors::metadata(params$transformed)$method` |
+
+## Samples
+
+```{r}
+knitr::kable(cbind(params$design, size_factor = round(DESeq2::sizeFactors(dds), 3)))
+```
+
+## Summary
+
+```{r}
+knitr::kable(summarise_results(res, dds))
+```
+
+## PCA
+
+```{r}
+p <- compute_pca(SummarizedExperiment::assay(params$transformed), params$design)
+ggplot(p$data, aes(PC1, PC2, colour = .data[[params$variable]], label = sample)) +
+  geom_point(size = 3) +
+  labs(x = sprintf("PC1: %s%% variance", p$percent[1]),
+       y = sprintf("PC2: %s%% variance", p$percent[2])) +
+  theme_minimal()
+```
+
+## Volcano plot
+
+```{r}
+d <- res[!is.na(res$padj), ]
+ggplot(d, aes(log2FoldChange, -log10(padj), colour = status)) +
+  geom_point(size = 0.8, alpha = 0.7) +
+  scale_colour_manual(values = colors) +
+  geom_vline(xintercept = c(-params$lfc, params$lfc), linetype = "dashed") +
+  geom_hline(yintercept = -log10(params$alpha), linetype = "dashed") +
+  labs(x = "log2 fold change", y = "-log10 adjusted p-value", colour = NULL) +
+  theme_minimal()
+```
+
+## MA plot
+
+```{r}
+ggplot(res[res$baseMean > 0, ], aes(baseMean, log2FoldChange, colour = status)) +
+  geom_point(size = 0.8, alpha = 0.7) +
+  scale_x_log10() +
+  scale_colour_manual(values = colors) +
+  geom_hline(yintercept = c(-params$lfc, params$lfc), linetype = "dashed") +
+  labs(x = "Mean of normalised counts", y = "log2 fold change", colour = NULL) +
+  theme_minimal()
+```
+
+## p-value distribution
+
+```{r, fig.height = 3.5}
+ggplot(res[!is.na(res$pvalue), ], aes(pvalue)) +
+  geom_histogram(breaks = seq(0, 1, 0.05), fill = "#2c3e50", colour = "white") +
+  labs(x = "p-value", y = "Genes") +
+  theme_minimal()
+```
+
+## Top differentially expressed genes
+
+```{r}
+top <- head(res[res$status %in% c("Up", "Down"),
+                c("gene", "baseMean", "log2FoldChange", "padj", "status")], 30)
+top$baseMean <- round(top$baseMean, 1)
+top$log2FoldChange <- round(top$log2FoldChange, 3)
+top$padj <- format(top$padj, digits = 3, scientific = TRUE)
+knitr::kable(top, row.names = FALSE)
+```
+
+```{r, fig.height = 8}
+z <- top_gene_matrix(params$transformed, res, n = params$n_top)
+if (!is.null(z)) {
+  ann <- as.data.frame(params$design[colnames(z), , drop = FALSE])
+  pheatmap::pheatmap(z, annotation_col = ann, show_rownames = nrow(z) <= 30,
+                     color = grDevices::colorRampPalette(c("#2471A3", "white", "#C0392B"))(100),
+                     main = sprintf("Top %d DE genes (row z-score)", nrow(z)))
+}
+```
+
+## Session information
+
+```{r}
+sessionInfo()
+```
