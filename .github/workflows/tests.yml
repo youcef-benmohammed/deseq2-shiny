@@ -1,0 +1,17 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  testthat:
+    runs-on: ubuntu-latest
+    container: bioconductor/bioconductor_docker:RELEASE_3_19
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: Rscript -e 'BiocManager::install(c("DESeq2", "testthat"), ask = FALSE, update = FALSE)'
+      - name: Run unit tests
+        run: Rscript tests/testthat.R
