@@ -2,11 +2,15 @@
 
 [![tests](https://github.com/youcef-benmohammed/deseq2-shiny/actions/workflows/tests.yml/badge.svg)](https://github.com/youcef-benmohammed/deseq2-shiny/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Live demo](https://img.shields.io/badge/live%20demo-shinyapps.io-447099?logo=r)](https://5lhxiz-youcef-ben0mohammed.shinyapps.io/deseq2-shiny/)
 
 Interactive R Shiny application for bulk RNA-seq **differential expression analysis with
 [DESeq2](https://bioconductor.org/packages/DESeq2/)**: upload a count matrix and a sample
 sheet, choose the model, check sample quality, and explore, download and report the
 differentially expressed genes, without writing code.
+
+**▶ Live demo: https://5lhxiz-youcef-ben0mohammed.shinyapps.io/deseq2-shiny/**  
+*Hosted on a free plan: the app sleeps when idle, so the first load can take 20–30 seconds. Then click **Load example dataset (pasilla)** → **Run DESeq2**.*
 
 ![Differential expression tab](docs/screenshots/3_de.png)
 
